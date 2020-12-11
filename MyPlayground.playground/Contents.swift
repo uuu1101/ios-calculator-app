@@ -96,22 +96,24 @@ class DecimalCalculator {
             if operators.contains(postfix.first!) {
                 let secondValue = stack.pop()
                 let firstValue = stack.pop()
-                let result = operate(secondValue: secondValue!, firstValue: firstValue!, operator: postfix.first!)
+                let result = operate(secondValue: secondValue!, firstValue: firstValue!, calculatorOperator: postfix.first!)
                 stack.push(result)
                 postfix.removeFirst()
             } else {
-                stack.push(postfix.first!)
+                guard let number = postfix.first else { return }
+                stack.push(number)
                 postfix.removeFirst()
             }
         }
-        resultValue = stack.pop()!
+        guard let stackLastValue = stack.pop() else { return }
+        resultValue = stackLastValue
     }
     
-    func operate(secondValue: String, firstValue: String, `operator`: String) -> String {
+    func operate(secondValue: String, firstValue: String, calculatorOperator: String) -> String {
         let secondNumber = Int(secondValue) ?? 0
         let firstNumber = Int(firstValue) ?? 0
         
-        switch `operator` {
+        switch calculatorOperator {
         case "+":
             return String(firstNumber + secondNumber)
         case "-":
@@ -129,9 +131,9 @@ class DecimalCalculator {
         return operators.contains(input)
     }
     
-    func isLowPriority(_ `operator`: String?) -> Bool {
-        guard `operator` == OperatorType.add.rawValue
-                || `operator` == OperatorType.subtract.rawValue else {
+    func isLowPriority(_ calculatorOperator: String?) -> Bool {
+        guard calculatorOperator == OperatorType.add.rawValue
+                || calculatorOperator == OperatorType.subtract.rawValue else {
             return false
         }
         return true
@@ -170,23 +172,3 @@ cal.determineNumberOrOperator("4")
 cal.determineNumberOrOperator("=")
 
 print(cal.resultValue)
-
-/*
-func handleOperator(_ input: String) {
-    if stack.isEmpty() {
-        stack.push(value: input)
-    } else {
-        if isLowPriority(input) {
-            popAllStackToPostfix()
-            stack.push(input)
-        } else {
-            if isLowPriority(stack.peek()!) {
-                stack.push(input)
-            } else {
-                postfix.append(stack.pop()!)
-                stack.push(input)
-            }
-        }
-    }
-}
-*/
