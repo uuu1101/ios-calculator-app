@@ -7,34 +7,21 @@
 
 import Foundation
 
-enum BinaryOperatorType: String, CaseIterable {
-    case add = "+"
-    case subtract = "-"
-    case and = "&"
-    case nand = "~&"
-    case or = "|"
-    case nor = "~|"
-    case xor = "^"
-    case not = "~"
-    case leftShift = "<<"
-    case rightShift = ">>"
-}
-
-
 class BinaryCalculator {
     var stack = Stack()
     var postfix = [String]()
-    var resultValue: String = Constants.initialResultValue
+    var resultValue: String = Constants.zero
     var operators: [String] = BinaryOperatorType.allCases.map {
         type -> String in return type.rawValue
     }
     
-    func determineNumberOrOperator(_ input: String) {
+    func handleInput(_ input: String) {
         if isOperator(input) {
             handleOperator(input)
         } else if input == Constants.equal {
             popAllStackToPostfix()
             handlePostfix()
+            allClear()
         } else {
             postfix.append(input)
         }
@@ -45,26 +32,33 @@ class BinaryCalculator {
             stack.push(input)
             return
         }
-        if isLowPriority(input) {
+        guard let operatorType = BinaryOperatorType(rawValue: input),
+              let peekedValue = stack.peek(),
+              let peekedOperator = BinaryOperatorType(rawValue: peekedValue) else { return }
+        
+        if operatorType.isHighPriority(than: peekedOperator) {
+            stack.push(input)
+        } else if operatorType.isLowPriority(than: peekedOperator) {
             popAllStackToPostfix()
             stack.push(input)
         } else {
-            if isLowPriority(stack.peek()) {
-                stack.push(input)
-            } else {
-                guard let popValue = stack.pop() else { return }
-                postfix.append(popValue)
-                stack.push(input)
-            }
+            guard let popValue = stack.pop() else { return }
+            postfix.append(popValue)
+            stack.push(input)
         }
     }
     
     func handlePostfix() {
         while postfix.isNotEmpty() {
-            if operators.contains(postfix.first!) {
-                let secondValue = stack.pop()
-                let firstValue = stack.pop()
-                let result = operate(secondValue: secondValue!, firstValue: firstValue!, calculatorOperator: postfix.first!)
+            guard let postfixValue = postfix.first else { return }
+            if operators.contains(postfixValue) {
+                // not, shift
+                // operate(calculatorOperator: calculatorOperator, firstValue: firstValue)
+                // 아닌경우
+                guard let calculatorOperator = BinaryOperatorType(rawValue: postfixValue),
+                      let secondValue = stack.pop(),
+                      let firstValue = stack.pop() else { return }
+                let result = operate(calculatorOperator: calculatorOperator, firstValue: firstValue, secondValue: secondValue)
                 stack.push(result)
                 postfix.removeFirst()
             } else {
@@ -74,25 +68,53 @@ class BinaryCalculator {
             }
         }
         guard let stackLastValue = stack.pop() else { return }
-        resultValue = stackLastValue
+        resultValue = handleDigit(stackLastValue)
     }
     
-    func operate(secondValue: String, firstValue: String, calculatorOperator: String) -> String {
-        let secondNumber = Int(secondValue) ?? 0
-        let firstNumber = Int(firstValue) ?? 0
+    func operate(calculatorOperator: BinaryOperatorType, firstValue: String, secondValue: String = Constants.zero) -> String {
+        guard let firstNumber = Int(firstValue, radix: 2),
+              let secondNumber = Int(firstValue, radix: 2) else { return Constants.zero }
         
         switch calculatorOperator {
-        case "+":
+        case .add:
             return String(firstNumber + secondNumber, radix: 2)
-        case "-":
+        case .subtract:
             return String(firstNumber - secondNumber, radix: 2)
-        case "&":
+        case .and:
             return String(firstNumber & secondNumber, radix: 2)
-        case "|":
+        case .nand:
+            return String(~(firstNumber & secondNumber), radix: 2)
+        case .or:
             return String(firstNumber | secondNumber, radix: 2)
-        default:
-            return ""
+        case .nor:
+            return String(~(firstNumber | secondNumber), radix: 2)
+        case .xor:
+            return String(firstNumber ^ secondNumber, radix: 2)
+        case .not:
+            return String(~firstNumber, radix: 2)
+        case .leftShift:
+            return String(secondNumber << 1, radix: 2)
+        case .rightShift:
+            return String(secondNumber >> 1, radix: 2)
         }
+    }
+    
+    func handleDigit(_ fullNumber: String) -> String {
+        var result = Constants.zero
+        let frountNumber = fullNumber.components(separatedBy: Constants.dot)[0]
+        
+        if frountNumber.count > Constants.maxLength {
+            let offsetLength = frountNumber.count - Constants.maxLength
+            let startIndex = frountNumber.index(frountNumber.startIndex, offsetBy: offsetLength)
+            result = String(frountNumber[startIndex...])
+        } else {
+            let offsetLength = fullNumber.count > Constants.maxLength  ? Constants.maxLength : fullNumber.count - 1
+            let endIndex = fullNumber.index(fullNumber.startIndex, offsetBy: offsetLength)
+            result = String(fullNumber[...endIndex])
+        }
+        if result.hasSuffix(Constants.zero) { result.removeLast() }
+        if result.hasSuffix(Constants.dot) { result.removeLast() }
+        return result
     }
     
     func isOperator(_ input: String) -> Bool {
@@ -118,5 +140,3 @@ class BinaryCalculator {
         postfix.removeAll()
     }
 }
-
-
